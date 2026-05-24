@@ -12,7 +12,7 @@ A portable e-book reader built on Arduino Nano that allows users to read
 | MicroSD module | Book and progress storage |
 | MPU6050 | Autorotate sensor |
 | Passive buzzer | Audio feedback |
-| 3x Tactile buttons | Navigation |
+| 3 buttons | Navigation |
 
 ## Features
 
