@@ -37,13 +37,13 @@
 // !!!! Pentru text am folosit F, pentru a le muta din RAM in Flash, ca sa am spatiu
 
 // Constante ecran
-// Portret: 128x128, Landscape: 128x128
+// Portret: 128x128, Landscape: 128x128 <- outdated, de la fostul ecran, acum am 128x160
 // Acestea sunt pentru portret — se recalculeaza la rotatie, in functie de ecran, dar la actualul ecran nu e cazul
 // dimensiuni caractere
 // dimensiunile standard ale carcterelor in Adafruit
 #define CHAR_W 6
 #define CHAR_H 8
-// inaltimea liniei, 8px caracterul  +  2 px padding
+// inaltimea liniei, 8px caracterul + 2 px padding
 #define LINE_H 10
 // unde incepe textul
 #define HEADER_Y 0
@@ -51,14 +51,14 @@
 #define TEXT_Y 12
 
 // fisierele
-// am ales dimensiuile astfel incat sa nu ocupe prea mult spatiu in ra
+// am ales dimensiuile astfel incat sa nu ocupe prea mult spatiu in ram
 char books[MAX_BOOKS][MAX_FILENAME];
 // constante carte
 uint8_t bookCount = 0;
 uint8_t currentBook = 0;
 uint32_t currentPage = 0;
 uint8_t menuCursor = 0;
-uint8_t currentRotation = 255;  // 255 = necunoscut, forteaza primul redraw  - > sugestie claude, de verificat
+uint8_t currentRotation = 255;  // valoare imposibila ca sa nu fie confundata cu vreo stare anterioara inexistenta
 
 // cele 2 moduri de functionare
 enum Mode { 
@@ -80,7 +80,7 @@ MPU6050 mpu;
 
 // functii buzzer pentru diferitele actiuni
 
-// delay dupa tone pentru ca tone e asincron si nu vrem sa executam urmatorul pas inaintea finalizarii feedback - ului sonor
+// delay dupa tone pentru ca tone e asincron si nu vrem sa executam urmatorul pas inaintea finalizarii feedback-ului sonor
 void beepOK() { 
   // 2 sunete scurt unul mai jos, unul mai sus
   // bip de frecventa 1000Hz, 80 ms
@@ -101,14 +101,27 @@ void beepMenu()  {
 }
 
 // functii pentru recalcularea dimensiunilor ecranului, nu mai e cazul la ecranul patrat
-uint8_t screenW()  { return (currentRotation==1||currentRotation==3) ? 160 : 128; }
-uint8_t screenH()  { return (currentRotation==1||currentRotation==3) ? 128 : 160; }
-uint8_t lcdCols()  { return screenW() / CHAR_W; }         // portret=21, landscape=26
-uint8_t lcdRows()  { return (screenH() - TEXT_Y - LINE_H*2) / LINE_H; }  // portret=13, landscape=8
-uint8_t footerY()  { return screenH() - LINE_H - 2; }     // portret=148, landscape=116
-uint16_t charsPerPage() { return (uint16_t)lcdCols() * lcdRows(); }
+uint8_t screenW()  { 
+  return (currentRotation == 1 || currentRotation == 3) ? 160 : 128; 
+}
+uint8_t screenH()  { 
+  return (currentRotation == 1 || currentRotation == 3) ? 128 : 160; 
+}
+uint8_t lcdCols()  { 
+  return screenW() / CHAR_W; 
+}         // portret=21, landscape=26
+uint8_t lcdRows()  { 
+  // scad din inaltimea totala headerul si las satiu pentru footer
+  return (screenH() - TEXT_Y - LINE_H * 2) / LINE_H; 
+}  // portret=13, landscape=8
+uint8_t footerY()  { 
+  return screenH() - LINE_H - 2; 
+}     // portret=148, landscape=116
+uint16_t charsPerPage() { 
+  return (uint16_t)lcdCols() * lcdRows(); 
+}
 
-//      functii card sd
+//     functii card sd
 
 bool endsWith_TXT(const char* name) {
   // verifica daca functia se termina in txt
@@ -166,7 +179,7 @@ void scanBooks() {
       strncpy(books[bookCount], name, MAX_FILENAME);
       // strncpy nu garanteaza terminatorul de sir
       books[bookCount][MAX_FILENAME - 1] = '\0';
-      bookCount++ ;
+      bookCount++;
     }
     entry.close();
   }
@@ -189,13 +202,14 @@ uint32_t pageOffset(uint8_t idx, uint32_t page) {
     // citesc cate un caracter
     char c = f.read();
     // incrementez nr de caractere pe pagina asta
-    charsOnPage++ ;
+    charsOnPage++;
     if (charsOnPage >= cpp) {
       // cand trec de maximul pe pagina
       // astept sa apara un separator de cuvant sau de paragrafe sau sa se termine cartea inainte de a trece la urmatoarea pagina
       if (c ==  ' ' || c ==  '\n' || c ==  '\r' || !f.available()) {
         // de unde incepe urmatorul cuvant de dupa separator
         offset = f.position(); 
+        // bug gasit foarte tariu, aici se pot pierde cateva litere, pentru ca se reseteaza charsOnPage cand se trece la urmatoarea apgina, desi logic acel cuvant ar trebui luat in calcul
         charsOnPage = 0; 
         currentPg++;
       }
@@ -217,11 +231,12 @@ uint32_t totalPages(uint8_t idx) {
     // similar cu functia anterioara
     char c = f.read();
     charsOnPage++;
-    if (charsOnPage >=  cpp) {
-      if (c ==  ' '||c ==  '\n'||c ==  '\r'||!f.available()) {
+    if (charsOnPage >= cpp) {
+      if (c ==  ' ' || c ==  '\n' || c ==  '\r' || !f.available()) {
+        // acelasi bug ca mai sus
         charsOnPage = 0;
         if (f.available()) 
-          pages++ ;
+          pages++;
       }
     }
   }
@@ -250,6 +265,7 @@ uint32_t loadBookProgress(uint8_t idx) {
   char fname[9]; 
   // generez fisierul ca sa stiu ce caut
   progressFilename(idx, fname);
+  // verific ca exista fisierul si il deschid
   if (!SD.exists(fname)) 
     return 0;
   File f = SD.open(fname);
@@ -513,8 +529,8 @@ void setup() {
   pinMode(PIN_LCD_CS, OUTPUT); 
   digitalWrite(PIN_LCD_CS, HIGH);
 
-  pinMode(PIN_CS_SD,  OUTPUT); 
-  digitalWrite(PIN_CS_SD,  HIGH);
+  pinMode(PIN_CS_SD, OUTPUT); 
+  digitalWrite(PIN_CS_SD, HIGH);
 
   // spi pentru SD
   // face initializarile spi, seteaza viteza si formatul transferului, trimite comenzile de initializare cardului si verifica daca e formatat bine
